@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>JARVIS</title>
+    <!-- PWA APP MODE TAGS -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    
+    <!-- THIS LINKS TO YOUR MANIFEST FILE -->
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Iron_Man_Arc_Reactor.svg/1024px-Iron_Man_Arc_Reactor.svg.png">
+
+    <style>
+        body { background-color: #000000; color: #00f3ff; font-family: 'Courier New', Courier, monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; transition: background-color 0.5s; -webkit-user-select: none; user-select: none; }
+        body.camera-active { background-color: transparent !important; }
+        #flashlight { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #ffffff; z-index: 9999; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #flashlightText { color: #000; font-weight: bold; font-size: 20px; letter-spacing: 3px; margin-bottom: 30px; }
+        #flashlightBtn { background: #000; color: #fff; border: 2px solid #000; padding: 15px 30px; font-size: 16px; font-family: 'Courier New', monospace; cursor: pointer; text-transform: uppercase; font-weight: bold; }
+        #cameraFeed { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; display: none; }
+        #recIndicator { position: absolute; top: 20px; right: 20px; color: red; font-weight: bold; font-size: 16px; display: none; text-shadow: 0 0 10px red; z-index: 10; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; }
+        #systemLog { position: absolute; top: 20px; left: 10px; width: 120px; height: 200px; font-size: 10px; color: #00ff00; overflow: hidden; opacity: 0.7; text-align: left; z-index: 5; display: flex; flex-direction: column; justify-content: flex-end; }
+        .jarvis-container { position: relative; width: 300px; height: 300px; display: flex; justify-content: center; align-items: center; z-index: 2; }
+        .ring { position: absolute; border-radius: 50%; border: 2px solid transparent; }
+        .ring-1 { width: 280px; height: 280px; border-top: 4px solid #ffaa00; border-bottom: 4px solid #ffaa00; animation: spin 10s linear infinite; box-shadow: 0 0 15px #ffaa00; }
+        .ring-2 { width: 220px; height: 220px; border-left: 4px solid #00f3ff; border-right: 4px solid #00f3ff; animation: spin-reverse 7s linear infinite; box-shadow: 0 0 15px #00f3ff; }
+        .ring-3 { width: 160px; height: 160px; border: 2px dashed #00f3ff; animation: spin 15s linear infinite; }
+        .core { width: 80px; height: 80px; background: radial-gradient(circle, #00f3ff 0%, transparent 70%); border-radius: 50%; box-shadow: 0 0 20px #00f3ff; animation: pulse 2s infinite; transition: background 0.3s; }
+        .core.listening { background: radial-gradient(circle, #ffaa00 0%, transparent 70%); box-shadow: 0 0 30px #ffaa00; }
+        .core.thinking { background: radial-gradient(circle, #ff0055 0%, transparent 70%); box-shadow: 0 0 30px #ff0055; }
+        .core.speaking { background: radial-gradient(circle, #00f3ff 0%, transparent 70%); box-shadow: 0 0 50px #00f3ff; animation: pulse 0.2s infinite alternate; }
+        .core.always-on { animation: pulse 3s infinite; box-shadow: 0 0 25px #00f3ff; }
+        .ui-panel { position: absolute; bottom: -130px; text-align: center; width: 100%; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 10px; border: 1px solid #00f3ff; backdrop-filter: blur(5px); }
+        h1 { font-size: 24px; letter-spacing: 5px; margin: 0 0 10px 0; text-shadow: 0 0 10px #00f3ff; }
+        button { background: transparent; border: 2px solid #ffaa00; color: #ffaa00; padding: 10px 20px; font-size: 16px; font-family: inherit; cursor: pointer; text-transform: uppercase; box-shadow: 0 0 10px #ffaa00; transition: 0.3s; margin: 5px; }
+        button:active { background: #ffaa00; color: black; }
+        button.stop { border-color: #ff0055; color: #ff0055; box-shadow: 0 0 10px #ff0055; }
+        #status { color: #888; font-size: 14px; margin-top: 10px; }
+        #transcript { color: #00f3ff; font-size: 16px; margin-top: 10px; font-weight: bold; min-height: 20px;}
+        #visualizer { display: flex; justify-content: center; align-items: center; gap: 4px; height: 30px; margin-top: 10px; }
+        .bar { width: 4px; background: #00f3ff; height: 5px; transition: height 0.1s; }
+        .bar.active { animation: sound 0.3s infinite alternate; }
+        .bar:nth-child(1) { animation-delay: 0.1s; } .bar:nth-child(2) { animation-delay: 0.2s; }
+        .bar:nth-child(3) { animation-delay: 0.3s; } .bar:nth-child(4) { animation-delay: 0.1s; }
+        .bar:nth-child(5) { animation-delay: 0.2s; }
+        @keyframes sound { 0% { height: 5px; } 100% { height: 30px; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 100% { transform: scale(1.1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="flashlight">
+        <div id="flashlightText">TACTICAL LIGHT ACTIVE</div>
+        <button id="flashlightBtn" onclick="toggleFlashlight()">TAP TO TURN OFF</button>
+    </div>
+    <video id="cameraFeed" autoplay playsinline muted></video>
+    <div id="recIndicator">● REC</div>
+    <div id="systemLog"><div>> SYS_INIT...</div></div>
+    <div class="jarvis-container">
+        <div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div>
+        <div class="core" id="core"></div>
+        <div class="ui-panel">
+            <h1>J.A.R.V.I.S.</h1>
+            <button id="startBtn" onclick="toggleListening()">INITIATE SYSTEM</button>
+            <p id="status">System Standby...</p>
+            <p id="transcript"></p>
+            <div id="visualizer"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+        </div>
+    </div>
+    <script>
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = false;
+        const core = document.getElementById('core'); const statusText = document.getElementById('status'); const transcriptText = document.getElementById('transcript');
+        const startBtn = document.getElementById('startBtn'); const cameraFeed = document.getElementById('cameraFeed'); const recIndicator = document.getElementById('recIndicator');
+        const systemLog = document.getElementById('systemLog'); const flashlight = document.getElementById('flashlight'); const bars = document.querySelectorAll('.bar');
+        let isListening = false; let isCameraOn = false; let mediaRecorder; let recordedChunks = []; let isRecording = false; let isFlashlightOn = false;
+        function getRandomResponse(responses) { return responses[Math.floor(Math.random() * responses.length)]; }
+        const logMessages = ["> PING: 12ms", "> MEM: 42%", "> NET: SECURE", "> SCAN: ACTIVE", "> CPU: 18%", "> TEMP: 34C"];
+        setInterval(() => { const msg = document.createElement('div'); msg.innerText = logMessages[Math.floor(Math.random() * logMessages.length)]; systemLog.appendChild(msg); if (systemLog.children.length > 8) systemLog.removeChild(systemLog.firstChild); }, 1500);
+        function setSpeaking(isSpeaking) { bars.forEach(bar => isSpeaking ? bar.classList.add('active') : bar.classList.remove('active')); isSpeaking ? core.classList.add('speaking') : core.classList.remove('speaking'); }
+        async function checkBattery() { if (navigator.getBattery) { const battery = await navigator.getBattery(); const level = Math.round(battery.level * 100); const charging = battery.charging ? "and currently charging" : "on battery power"; speak(`Power levels are at ${level} percent, ${charging}, sir.`); } else { speak("Unable to access power diagnostics."); } }
+        function toggleFlashlight() { isFlashlightOn = !isFlashlightOn; if (isFlashlightOn) { flashlight.style.display = 'flex'; speak("Flashlight activated."); } else { flashlight.style.display = 'none'; speak("Flashlight deactivated."); } }
+        function setTimer(command) { const numbers = command.match(/\d+/); if (!numbers) { speak("Please specify a time, sir."); return; } const amount = parseInt(numbers[0]); let seconds = amount; if (command.includes('minute')) seconds = amount * 60; if (command.includes('hour')) seconds = amount * 3600; speak(`Timer set for ${amount} ${command.includes('minute') ? 'minutes' : 'seconds'}.`); setTimeout(() => { speak("Time is up, sir."); }, seconds * 1000); }
+        function startRecording() { if (!isCameraOn) { speak("Camera is offline."); return; } if (isRecording) return; const stream = cameraFeed.srcObject; let options = { mimeType: 'video/webm;codecs=vp9' }; if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' }; try { mediaRecorder = new MediaRecorder(stream, options); } catch (e) { speak("Recording format not supported."); return; } recordedChunks = []; mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); }; mediaRecorder.onstop = () => { const blob = new Blob(recordedChunks, { type: 'video/webm' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = 'JARVIS_MISSION_' + Date.now() + '.webm'; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); speak("Mission recording saved."); recIndicator.innerText = "● REC"; }; mediaRecorder.start(); isRecording = true; recIndicator.innerText = "● REC [SAVING]"; speak("Mission recording initiated."); }
+        function stopRecording() { if (!isRecording) { speak("No active recording."); return; } mediaRecorder.stop(); isRecording = false; }
+        async function openCamera() { try { const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: true }); cameraFeed.srcObject = stream; cameraFeed.style.display = "block"; recIndicator.style.display = "block"; document.body.classList.add('camera-active'); isCameraOn = true; cameraFeed.play(); speak("Camera systems online."); } catch (err) { speak("Unable to access camera."); } }
+        function closeCamera() { if (isRecording) stopRecording(); if (cameraFeed.srcObject) { cameraFeed.srcObject.getTracks().forEach(track => track.stop()); cameraFeed.srcObject = null; } cameraFeed.style.display = "none"; recIndicator.style.display = "none"; document.body.classList.remove('camera-active'); isCameraOn = false; speak("Camera systems offline."); }
+        async function processCommand(command) { let cmd = command.toLowerCase(); if (cmd.includes('jarvis')) { let actualCommand = cmd.replace('jarvis', '').trim(); core.classList.add('listening'); setTimeout(() => core.classList.remove('listening'), 1000); if (actualCommand === '') { speak("Yes sir?"); return; } cmd = actualCommand; } else { return; }
+        if (cmd.includes('hello') || cmd.includes('hi')) speak(getRandomResponse(["Hello sir.", "Good day, sir."])); else if (cmd.includes('how are you')) speak("All systems nominal."); else if (cmd.includes('time')) speak("The time is " + new Date().toLocaleTimeString()); else if (cmd.includes('date')) speak("Today is " + new Date().toDateString()); else if (cmd.includes('weather')) { speak("Checking weather."); window.open('https://www.google.com/search?q=weather', '_blank'); } else if (cmd.includes('battery') || cmd.includes('power level')) await checkBattery(); else if (cmd.includes('flashlight') || cmd.includes('light')) toggleFlashlight(); else if (cmd.includes('timer') || cmd.includes('remind me in')) setTimer(cmd); else if (cmd.includes('open camera')) openCamera(); else if (cmd.includes('close camera')) closeCamera(); else if (cmd.includes('start recording') || cmd.includes('record video')) startRecording(); else if (cmd.includes('stop recording') || cmd.includes('save video')) stopRecording(); else if (cmd.includes('open youtube')) { speak("Opening YouTube."); window.open('https://www.youtube.com', '_blank'); } else if (cmd.includes('open google')) { speak("Opening Google."); window.open('https://www.google.com', '_blank'); } else if (cmd.includes('search for')) { let query = cmd.replace('search for', '').trim(); if (query) { speak("Searching for " + query); window.open('https://www.google.com/search?q=' + query, '_blank'); } } else if (cmd.includes('shut down')) { speak("Powering down."); if(isCameraOn) closeCamera(); if(isFlashlightOn) toggleFlashlight(); toggleListening(); } else { speak("I didn't catch that, sir."); } core.classList.remove('thinking'); }
+        recognition.onresult = function(event) { const whatYouSaid = event.results[event.results.length - 1][0].transcript; transcriptText.innerText = "Heard: " + whatYouSaid; core.classList.add('thinking'); processCommand(whatYouSaid); setTimeout(() => { statusText.innerText = isListening ? "Listening..." : "Standby..."; }, 2000); };
+        recognition.onend = function() { if (isListening) setTimeout(() => { try { recognition.start(); } catch(e) {} }, 500); };
+        function toggleListening() { if (!isListening) { isListening = true; try { recognition.start(); statusText.innerText = "Listening..."; core.classList.add('always-on'); startBtn.innerText = "TERMINATE"; startBtn.classList.add('stop'); speak("Systems initiated."); } catch(e) {} } else { isListening = false; recognition.stop(); statusText.innerText = "Standby..."; core.classList.remove('always-on'); startBtn.innerText = "INITIATE"; startBtn.classList.remove('stop'); } }
+        function speak(text) { window.speechSynthesis.cancel(); let speech = new SpeechSynthesisUtterance(); speech.text = text; speech.volume = 1; speech.rate = 1; speech.pitch = 0.9; speech.onstart = () => setSpeaking(true); speech.onend = () => setSpeaking(false); window.speechSynthesis.speak(speech); }
+        window.toggleListening = toggleListening;
+    </script>
+</body>
+  </html>
