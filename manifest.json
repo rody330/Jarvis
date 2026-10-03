@@ -1,0 +1,16 @@
+{
+  "name": "J.A.R.V.I.S.",
+  "short_name": "JARVIS",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00f3ff",
+  "description": "Personal AI Assistant",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/Iron_Man_Arc_Reactor.svg/1024px-Iron_Man_Arc_Reactor.svg.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
